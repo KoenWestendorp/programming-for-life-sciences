@@ -3,6 +3,8 @@
 
 import numpy as np
 
+from utilities import read_fasta_file
+
 def add_diagonals(N):
     h, w = N.shape
     R = N.copy()
@@ -111,20 +113,17 @@ def walk_up_down(M, pos: tuple[int, int]) -> tuple[tuple[int, int], tuple[int, i
 
     return start_point, end_point, counter
 
-from utilities import read_fasta_file
+def print_matrix_properties(M, print_matrix=True):
+    if print_matrix: print(M)
+    print("  max:", M.max())
+    print("n_max:", np.count_nonzero(M == M.max()))
+    print(" ones:", np.count_nonzero(M == 1))
+    print("shape:", M.shape)
 
 if __name__ == "__main__":
     fasta = read_fasta_file("rosalind_lcsm.txt")
     sequences = [seq for _, seq in fasta]
     s, t = sequences[0:2]
-
-    # s = list("actgatgcaag")
-    # t = list("ctgatgcata")
-    # s = list("hactgu")
-    # t = list("dactgo")
-    # s = list("""Het besluit om voorlopig te stoppen komt nadat de redactie opnieuw een waarschuwing kreeg van de Russische mediatoezichthouder Roskomnadzor. Een recent aangenomen wet bepaalt dat alle kritiek op de oorlog in Oekraïne of de Russische overheid officieel verboden is. Er staan alleen al hoge straffen op het noemen van de woorden 'oorlog' en 'invasie'. Dat maakt onafhankelijke journalistiek in Rusland nagenoeg onmogelijk.""")
-    # t = list("""Dat de krant ermee zou ophouden - in ieder geval tijdelijk - zat eraan te komen, zegt journalist Laura Starink van het kennisplatform Raam op Rusland. 'Tot voor kort was president Poetin van mening dat de oppositiepers niets voorstelde en dat hij daar niks van te vrezen had. Novaja Gazeta is een zeer kritische maar kleine krant, met een klein bereik in Rusland. Maar na de opstand in Belarus (in 2020 en 2021, red.) heeft Poetin zijn standpunt herzien.'""")
-    # s = 'GTCTGGTTGTCTGAGTCCCCTACGTAAGTAGTCATTATATTAGACATGAATTAGCATCAAGCATATTGATCCTTACTTCTTTTCTAACAGCCCGGTGCCGTGCTTGTAGAAATTGATCCTCCTACCTCTCACGAAGTGCCTAGTGGTCAGGGTTATTACAAAGAATGAGAGCCGATCTTATTTCCTTGCCTGTCCTGTCATAGAGACTCGATCAACTGTGCGCGTTTGCAACTCAACGACCGGTTCCTTGCGGCGACTGAGA'
 
     M = np.zeros((len(s), len(t)), dtype='int')
 
@@ -137,23 +136,19 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
     fig = plt.figure()
-    ax1 = fig.add_subplot(221)
-
+    ax1 = fig.add_subplot(221, title="Original")
     ax1.imshow(M, interpolation='nearest')
 
     print("Pass", 1)
     M = addition_pass(M)
     N = M.copy()
 
-    ax2 = fig.add_subplot(222)
+    ax2 = fig.add_subplot(222, title="1 addition pass")
     ax2.imshow(M, interpolation='nearest')
 
 
     print("Pass", 2)
     M = addition_pass(M)
-
-    ax3 = fig.add_subplot(223)
-    ax3.imshow(M, interpolation='nearest')
 
     # After 2 passes, the number of ones in the matrix should be stable. 
     # (Check this assumption, though!)
@@ -166,8 +161,9 @@ if __name__ == "__main__":
     print("Ones removed")
     print(M)
 
-    ax4 = fig.add_subplot(224)
-    ax4.imshow(M, interpolation='nearest')
+    ax3 = fig.add_subplot(223, title="1 more addition pass, removed ones")
+    ax3.imshow(M, interpolation='nearest')
+
 
     #plt.show()
 
@@ -186,19 +182,14 @@ if __name__ == "__main__":
             shortenings += 1
         M = normalize_pass(M)
 
-        print(M)
-        print("  max:", M.max())
-        print("n_max:", np.count_nonzero(M == M.max()))
-        print(" ones:", np.count_nonzero(M == 1))
-        print("shape:", M.shape)
-
+        print_matrix_properties(M, print_matrix=False)
 
         prev_n_max = n_max
         n_max = np.count_nonzero(M == M.max())
         passes += 1
 
-    ax5 = fig.add_subplot(221)
-    ax5.imshow(M, interpolation='nearest')
+    ax4 = fig.add_subplot(224, title="addition, shortening, and normalize passes")
+    ax4.imshow(M, interpolation='nearest')
 
     plt.show()
 
@@ -222,8 +213,6 @@ if __name__ == "__main__":
     # (1) Get positions of maximum values.
     ys, xs = np.asarray(M == M.max()).nonzero()
     results = []
-    # for i in range(0, n_max):
-    #     y, x = ys[i], xs[i]
     for y, x in zip(ys, xs):
         # (2) For each maximum value position, walk up and down its diagonal
         #     and determine its start point, end point, and length.
@@ -235,13 +224,11 @@ if __name__ == "__main__":
             start_point, end_point, diagonal_len = res
             results.append(res)
 
-
-            if diagonal_len <= 4: continue
-
-            print(f"diagonal through {x, y}: {start_point}, {end_point}, {diagonal_len}")
-            print("this corresponds to the following sequences (also they should be exactly equal!!)")
+            #if diagonal_len <= 4: continue
+            #print(f"diagonal through {x, y}: {start_point}, {end_point}, {diagonal_len}")
+            #print("this corresponds to the following sequences (also they should be exactly equal!!)")
             print("s:", "".join(s[start_point[1]:end_point[1] + 1]))
-            print("t:", "".join(t[start_point[0]:end_point[0] + 1]))
+            #print("t:", "".join(t[start_point[0]:end_point[0] + 1]))
 
     # (3) Get the subsequence using these positions.
     longest_substrings = ["".join(s[start_point[1]:end_point[1]]) 
@@ -266,7 +253,3 @@ if __name__ == "__main__":
 
     print(list(hits))
     print(max([(n, len(n)) for n in hits], key=lambda e: e[1]))
-
-    # for id, seq in fasta:
-        # r = seq.find('GTCTGGTTGTCTGAGTCCCCTACGTAAGTAGTCATTATATTAGACATGAATTAGCATCAAGCATATTGATCCTTACTTCTTTTCTAACAGCCCGGTGCCGTGCTTGTAGAAATTGATCCTCCTACCTCTCACGAAGTGCCTAGTGGTCAGGGTTATTACAAAGAATGAGAGCCGATCTTATTTCCTTGCCTGTCCTGTCATAGAGACTCGATCAACTGTGCGCGTTTGCAACTCAACGACCGGTTCCTTGCGGCGACTGAGA')
-        # print(f"{id} ({r})")

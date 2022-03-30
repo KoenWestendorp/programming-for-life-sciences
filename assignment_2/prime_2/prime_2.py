@@ -1,10 +1,24 @@
 # By Koen Westendorp (s3950808)
-# 2022-03-21
+# 2022-03-28
 # Programming for Life Sciences Assignment 1
 
 # Exercise 2: Sieve of Erastosthenes
 
 def crude_sieve(maximum: int) -> list[int]:
+    """
+    Returns a list of numbers from 2 to maximum, where all non-prime numbers
+    have been replaced by a zero.
+
+    Parameters
+    ----------
+    maximum : int
+        The maximum value up to which the list will be generated.
+
+    Returns
+    -------
+    [int]
+    """
+
     r = range(2, maximum + 1) # Create inclusive range [2, maximum]
     l = list(r)
     
@@ -23,9 +37,42 @@ def crude_sieve(maximum: int) -> list[int]:
     return list(l)
 
 def remove_zeroes(number_list: list[int]) -> list[int]:
+    """
+    Returns a list of numbers, removing interspaced zeroes from the input
+    `number_list`.
+
+    Parameters
+    ----------
+    number_list : [int]
+        List of numbers interspaced with zeroes from which the returned list
+        will be created.
+
+    Returns
+    -------
+    [int]
+    """
+
     return [n for n in number_list if n != 0]
 
 def sieve(maximum: int) -> list[int]:
+    """
+    Returns a list of prime numbers up to the value of `maximum`, using the
+    sieve of Erastosthenes method.
+
+    First, a list from 2 to `maximum` is generated, and non-primes are set to
+    zero. Then, the zeroes are removed, and the resulting list of ints is
+    returned.
+
+    Parameters
+    ----------
+    maximum : int
+        The maximum value up to which the list will be generated.
+
+    Returns
+    -------
+    [int]
+    """
+
     crude = crude_sieve(maximum)
     return remove_zeroes(crude)
 
@@ -33,11 +80,24 @@ def sieve(maximum: int) -> list[int]:
 
 ## 3.1
 
-#from ../../assignment_1/prime/prime import
-
 from math import isqrt
 
-def prime_storing(maximum: int) -> list[int]:
+def prime_numbers_storing(maximum: int) -> list[int]:
+    """
+    Returns a list of prime numbers up to the value of `maximum`, constructed
+    by only appending values that cannot be divided by any previous entries
+    into the list.
+
+    Parameters
+    ----------
+    maximum : int
+        The maximum value up to which the list will be generated.
+
+    Returns
+    -------
+    [int]
+    """
+
     found_primes = [2]
     for n in range(2, maximum + 1):
         # First, check whether `n` is divisible by any known primes. 
@@ -56,7 +116,7 @@ def prime_storing(maximum: int) -> list[int]:
     return found_primes
 
 if __name__ == "__main__":
-    n = 18
+    n = 10000
     print(f"""
 Assignment 2: Prime 2
 ---------------------
@@ -74,5 +134,5 @@ sieve(n)
 Exercise 3
 ==========
 prime_storing(100)
-    -> {prime_storing(100)}
+    -> {prime_numbers_storing(n)}
 """)
