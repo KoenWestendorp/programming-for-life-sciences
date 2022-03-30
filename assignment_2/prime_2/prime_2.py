@@ -2,6 +2,8 @@
 # 2022-03-28
 # Programming for Life Sciences Assignment 1
 
+from math import isqrt
+
 # Exercise 2: Sieve of Erastosthenes
 
 def crude_sieve(maximum: int) -> list[int]:
@@ -33,7 +35,7 @@ def crude_sieve(maximum: int) -> list[int]:
             # `r`.
             if not (m == 0 or m == n) and m % n == 0:
                 l[i] = 0
-                
+
     return list(l)
 
 def remove_zeroes(number_list: list[int]) -> list[int]:
@@ -80,8 +82,6 @@ def sieve(maximum: int) -> list[int]:
 
 ## 3.1
 
-from math import isqrt
-
 def prime_numbers_storing(maximum: int) -> list[int]:
     """
     Returns a list of prime numbers up to the value of `maximum`, constructed
@@ -115,14 +115,13 @@ def prime_numbers_storing(maximum: int) -> list[int]:
 
     return found_primes
 
-if __name__ == "__main__":
-    n = 10000
-    print(f"""
+def demo(n: int):
+    print(f"""\
 Assignment 2: Prime 2
----------------------
+=====================
 
 Exercise 2
-==========
+----------
 For n = {n},
 crude_sieve(n) 
     -> {crude_sieve(n)}
@@ -132,7 +131,10 @@ sieve(n)
     -> {sieve(n)}
 
 Exercise 3
-==========
+----------
 prime_storing(100)
-    -> {prime_numbers_storing(n)}
+    -> {prime_numbers_storing(n)}\
 """)
+
+if __name__ == "__main__":
+    demo(18)
