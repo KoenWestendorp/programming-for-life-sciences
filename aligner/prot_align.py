@@ -1,23 +1,15 @@
 from collections import namedtuple
+from functools import partial
 import time
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
 
-from main import addition_pass, normalize_pass, shortening_pass
+from main import addition_pass, normalize_pass, shortening_pass, threshold_pass, squaring_pass, lifting_pass
 import utilities
 
 FastaEntry = namedtuple('FastaEntry', 'id seq')
-
-def construct_alignment_matrix(seq1, seq2, scoring_func=lambda a, b: a == b):
-    M = np.zeros((len(seq1), len(seq2)), dtype='int8')
-
-    for i, a in enumerate(seq1):
-        for j, b in enumerate(seq2):
-            M[i, j] = scoring_func(a, b)
-
-    return M
 
 def blosum_62(a: str, b: str) -> int:
     matrix = {
@@ -71,20 +63,6 @@ def windowed(l: list, window_size) -> list:
 
     return ret
 
-def construct_windowed_alignment_matrix(seq1, seq2, n=5, scoring_func=hamming_distance_inverse, scoring_threshold=1):
-    # TODO: make this function take a parameter for distance function, with
-    # Hamming distance function as default.
-    M = np.zeros((len(seq1), len(seq2)), dtype='int8')
-
-    seq2_windowed = windowed(seq2, n)
-    for i, a in enumerate(windowed(seq1, n)):
-        for j, b in enumerate(seq2_windowed):
-            score = scoring_func(a, b) 
-            if score >= scoring_threshold:
-                M[i, j] = score
-
-    return M
-
 def walk_up_down(M, pos: tuple[int, int]) -> tuple[tuple[int, int], tuple[int, int], int]:
     """
     Returns the start point, end point, and length of a particular non-zero
@@ -115,78 +93,139 @@ def walk_up_down(M, pos: tuple[int, int]) -> tuple[tuple[int, int], tuple[int, i
 
     return start_point, end_point, length
 
-def plot_matrix(M, s, t):
-    fig_with_seq, ax_with_seq = plt.subplots()
-    ax_with_seq.set_xlabel(t.id)
-    ax_with_seq.set_ylabel(s.id)
-    #ax_with_seq.set_xticks(range(len(t.seq)), minor=True)
-    #ax_with_seq.set_yticks(range(len(s.seq)), minor=True)
-    ax_with_seq.xaxis.set_major_locator(ticker.MultipleLocator(1))
-    ax_with_seq.yaxis.set_major_locator(ticker.MultipleLocator(1))
-    ax_with_seq.matshow(M, interpolation='nearest')
-    ax_with_seq.format_coord = lambda x, y: f"x={int(x+0.5)} ({t.seq[int(x+0.5)]}), y={int(y+0.5)} ({s.seq[int(y+0.5)]})"
+class Aligner:
+    def __init__(self, s: FastaEntry, t: FastaEntry, window_size=5, threshold=3):
+        self.s = s
+        self.t = t
+        self.window_size = window_size
+        self.threshold = threshold
 
-    plt.xticks(range(len(t.seq)), t.seq)
-    plt.yticks(range(len(s.seq)), s.seq)
+    def __getattr__(self, attr):
+        if attr == 'filtering_matrix':
+            self.filtering_matrix = self.alignment_matrix
+            return self.alignment_matrix
 
-    plt.show()
+    def _zeros(self, dtype='int8'):
+        return np.zeros((len(self.s.seq), len(self.t.seq)), dtype=dtype)
 
-def longest_substrings(M, N, s):
-    ys, xs = np.asarray(M == M.max()).nonzero()
-    results = set()
-    for y, x in zip(ys, xs):
-        res = walk_up_down(N, (x, y))
-        #start_point, end_point, diagonal_len = res
-        results.add(res)
+    def construct_alignment_matrix(self, scoring_func=lambda a, b: a == b):
+        M = self._zeros()
 
-    longest_substrings = [("".join(s.seq[start_point[1]:end_point[1]+1]), start_point, end_point) 
-                          for start_point, end_point, _ 
-                          in results]
+        for i, a in enumerate(self.s.seq):
+            for j, b in enumerate(self.t.seq):
+                M[i, j] = scoring_func(a, b)
 
-    longest_substrings.sort(key=lambda e: e[2][0] - e[1][0] + 1)
+        self.alignment_matrix = M
 
-    return longest_substrings
+        return M
 
-def compare(s: FastaEntry, t: FastaEntry, n=5, threshold=2):
-    print("Comparing")
-    print(f"\t{len(s.seq)}\t{s.id}")
-    print(f"\t{len(t.seq)}\t{t.id}")
+    def construct_windowed_alignment_matrix(self, scoring_func=hamming_distance_inverse):
+        # TODO: make this function take a parameter for distance function, with
+        # Hamming distance function as default.
+        M = self._zeros()
 
-    t_start = time.perf_counter()
+        seq2_windowed = windowed(self.s.seq, self.window_size)
+        for i, a in enumerate(windowed(self.t.seq, self.window_size)):
+            for j, b in enumerate(seq2_windowed):
+                score = scoring_func(a, b) 
+                if score >= self.threshold:
+                    M[i, j] = score
 
-    M = construct_alignment_matrix(s.seq, t.seq, scoring_func=blosum_62)
-    #M = construct_windowed_alignment_matrix(s.seq, t.seq, scoring_func=blosum_62_windowed)
-    N = M.copy()
+        self.alignment_matrix = M
 
-    print(f"Matrix constructed ({round(time.perf_counter() - t_start, 3)} seconds)")
+        return M
 
-    M = addition_pass(M)
-    M = addition_pass(M)
-    M = addition_pass(M)
-    A = M.copy()
+    def plot_matrix(self, M):
+        _, ax_with_seq = plt.subplots()
+        ax_with_seq.set_xlabel(self.t.id)
+        ax_with_seq.set_ylabel(self.s.id)
+        ax_with_seq.xaxis.set_major_locator(ticker.MultipleLocator(1))
+        ax_with_seq.yaxis.set_major_locator(ticker.MultipleLocator(1))
+        ax_with_seq.matshow(M, interpolation='nearest')
+        ax_with_seq.format_coord = lambda x, y: f"x={int(x + 0.5)} ({self.t.seq[int(x + 0.5)]}), y={int(y + 0.5)} ({self.s.seq[int(y + 0.5)]})"
 
-    M = addition_pass(M)
-    M = normalize_pass(M)
-    M = addition_pass(M)
-    M = shortening_pass(M)
-    M[M <= threshold] = 0
-    #M += N
+        plt.xticks(range(len(self.t.seq)), self.t.seq)
+        plt.yticks(range(len(self.s.seq)), self.s.seq)
 
-    print(f"Passes completed ({round(time.perf_counter() - t_start, 3)} seconds)")
+        plt.show()
 
-    ls = longest_substrings(M, N, s)
+    def plot_alignment_matrix(self):
+        self.plot_matrix(self.alignment_matrix)
 
-    t_end = time.perf_counter()
+    def plot_filter_matrix(self):
+        self.plot_matrix(self.filtering_matrix)
 
-    print(f"Done, completed in {round(t_end - t_start, 3)} seconds")
+    def longest_substrings(self):
+        ys, xs = np.asarray(self.filtering_matrix == self.filtering_matrix.max()).nonzero()
+        results = set()
+        for y, x in zip(ys, xs):
+            res = walk_up_down(self.alignment_matrix, (x, y))
+            results.add(res)
 
-    print(f"\tlen \t{'start':<10}\t{'end':<10}\tsequence")
-    print("\n".join([f"\t{end[0] - start[0]:>4}\t{str(start):<10}\t{str(end):<10}\t{seq}" for seq, start, end in ls[::-1][:10]]))
+        longest_substrings = [("".join(self.s.seq[start[1]:end[1]+1]), start, end) 
+                              for start, end, _ in results]
+        longest_substrings.sort(key=lambda e: e[2][0] - e[1][0] + 1)
 
+        return longest_substrings
 
-    plot_matrix(N, s, t)
-    plot_matrix(A, s, t)
-    return M
+    def _generic_pass(self, pass_function):
+        a = pass_function(self.filtering_matrix)
+        print("pass", pass_function, self.filtering_matrix, a)
+        self.filtering_matrix = a
+        return a
+
+    def addition_pass(self):
+        return self._generic_pass(addition_pass)
+
+    def shortening_pass(self):
+        return self._generic_pass(shortening_pass)
+
+    def normalize_pass(self):
+        return self._generic_pass(normalize_pass)
+
+    def threshold_pass(self):
+        return self._generic_pass(partial(threshold_pass, threshold=self.threshold))
+
+    def squaring_pass(self):
+        return self._generic_pass(squaring_pass)
+
+    def lifting_pass(self):
+        return self._generic_pass(lifting_pass)
+
+    def compare(self):
+        print("Comparing")
+        print(f"\t{len(self.s.seq)}\t{self.s.id}")
+        print(f"\t{len(self.t.seq)}\t{self.t.id}")
+
+        t_start = time.perf_counter()
+
+        self.construct_windowed_alignment_matrix(scoring_func=blosum_62_windowed)
+
+        print(f"Matrix constructed ({round(time.perf_counter() - t_start, 3)} seconds)")
+
+        self.lifting_pass()
+        self.addition_pass()
+        self.addition_pass()
+        self.lifting_pass()
+        self.normalize_pass()
+        self.addition_pass()
+        self.addition_pass()
+
+        print(f"Passes completed ({round(time.perf_counter() - t_start, 3)} seconds)")
+
+        ls = self.longest_substrings()
+
+        t_end = time.perf_counter()
+
+        print(f"Done, completed in {round(t_end - t_start, 3)} seconds")
+
+        print(f"\tlen \t{'start':<10}\t{'end':<10}\tsequence")
+        print("\n".join([f"\t{end[0] - start[0]:>4}\t{str(start):<10}\t{str(end):<10}\t{seq}" for seq, start, end in ls[::-1][:10]]))
+
+        self.plot_alignment_matrix()
+        self.plot_filter_matrix()
+
+        return self.filtering_matrix
 
 def main():
     import sys
@@ -195,24 +234,14 @@ def main():
         fasta_files = sys.argv[1:3]
 
         # Assuming single-entry fasta files
-        #entries = [utilities.read_fasta_file(file_path)[0] for file_path in fasta_files]
         entries = []
         for file_path in fasta_files:
             print(f"Reading '{file_path}'...")
             entry = utilities.read_fasta_file(file_path)[0]
             entries.append(FastaEntry(entry[0], entry[1]))
 
-        #t_max = 3
-        #fig, axs = plt.subplots(1, t_max)
-        #for t in range(0, t_max):
-        #    #for ni, n in enumerate(range(1, 4)):
-        #    n = 2
-        #    M = compare(entries[0], entries[1], n=n, threshold=t)
-        #    axs[t].matshow(M, interpolation='nearest')
-
-        #plt.show()
-
-        compare(entries[0], entries[1], n=3, threshold=3)
+        al = Aligner(entries[0], entries[1], window_size=3, threshold=3)
+        al.compare()
 
     else:
         print("Please provide two paths to fasta files containing protein sequences you want to compare.")

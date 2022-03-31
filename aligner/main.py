@@ -67,12 +67,22 @@ def addition_pass(M):
 
 def shortening_pass(M):
     M = shorten_diagonals(M)
-
     return M
 
-def normalize_pass(M):
-    M[M > 0] = 1
+def normalize_pass(M, to=1):
+    M[M > 0] = to
     return M 
+
+def threshold_pass(M, threshold: int = 1):
+    M[M <= threshold] = 0
+    return M
+
+def squaring_pass(M):
+    return M ** 2
+
+def lifting_pass(M):
+    lowest = M.min()
+    return M + lowest
 
 def walk_up_down(M, pos: tuple[int, int]) -> tuple[tuple[int, int], tuple[int, int], int]:
     """
