@@ -15,7 +15,7 @@ def construct_alignment_matrix(seq1, seq2, scoring_func=lambda a, b: a == b):
 
     for i, a in enumerate(seq1):
         for j, b in enumerate(seq2):
-            if scoring_func: M[i, j] = 1
+            M[i, j] = scoring_func(a, b)
 
     return M
 
