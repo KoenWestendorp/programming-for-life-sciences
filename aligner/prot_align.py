@@ -4,7 +4,6 @@ import time
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
-from scipy import signal
 
 from main import addition_pass, normalize_pass, shortening_pass
 import utilities
@@ -220,16 +219,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-    # s1, *_ = utilities.read_fasta_file("P59596.fasta")
-    # sars_cov_1_m_protein = FastaEntry(s1[0], s1[1])
-    # s2, *_ = utilities.read_fasta_file("P0DTC5.fasta")
-    # sars_cov_2_m_protein = FastaEntry(s2[0], s2[1])
-    # s3, *_ = utilities.read_fasta_file("P0DTC3.fasta")
-    # sars_cov_2_orf3a = FastaEntry(s3[0], s3[1])
-
-    # s = sars_cov_2_m_protein.seq 
-    # t = sars_cov_2_orf3a.seq
-
-    # compare(s, t)
-
