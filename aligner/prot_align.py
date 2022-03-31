@@ -11,24 +11,40 @@ import utilities
 
 FastaEntry = namedtuple('FastaEntry', 'id seq')
 
-def construct_alignment_matrix(seq1, seq2):
+def construct_alignment_matrix(seq1, seq2, scoring_func=lambda a, b: a == b):
     M = np.zeros((len(seq1), len(seq2)), dtype='int8')
 
     for i, a in enumerate(seq1):
         for j, b in enumerate(seq2):
-            if a == b: M[i, j] = 1
+            if scoring_func: M[i, j] = 1
 
     return M
 
-def construct_amino_acid_matrix(seq1, seq2):
-    assert False
-    M = np.array((len(seq1), len(seq2)), dtype=tuple[str])
+def blosum_62(a: str, b: str) -> int:
+    matrix = {
+        'A': {'A':  4, 'C':  0, 'D': -2, 'E': -1, 'F': -2, 'G':  0, 'H': -2, 'I': -1, 'K': -1, 'L': -1, 'M': -1, 'N': -2, 'P': -1, 'Q': -1, 'R': -1, 'S':  1, 'T':  0, 'V':  0, 'W': -3, 'Y': -2},
+        'C': {'A':  0, 'C':  9, 'D': -3, 'E': -4, 'F': -2, 'G': -3, 'H': -3, 'I': -1, 'K': -3, 'L': -1, 'M': -1, 'N': -3, 'P': -3, 'Q': -3, 'R': -3, 'S': -1, 'T': -1, 'V': -1, 'W': -2, 'Y': -2},
+        'D': {'A': -2, 'C': -3, 'D':  6, 'E':  2, 'F': -3, 'G': -1, 'H': -1, 'I': -3, 'K': -1, 'L': -4, 'M': -3, 'N':  1, 'P': -1, 'Q':  0, 'R': -2, 'S':  0, 'T': -1, 'V': -3, 'W': -4, 'Y': -3},
+        'E': {'A': -1, 'C': -4, 'D':  2, 'E':  5, 'F': -3, 'G': -2, 'H':  0, 'I': -3, 'K':  1, 'L': -3, 'M': -2, 'N':  0, 'P': -1, 'Q':  2, 'R':  0, 'S':  0, 'T': -1, 'V': -2, 'W': -3, 'Y': -2},
+        'F': {'A': -2, 'C': -2, 'D': -3, 'E': -3, 'F':  6, 'G': -3, 'H': -1, 'I':  0, 'K': -3, 'L':  0, 'M':  0, 'N': -3, 'P': -4, 'Q': -3, 'R': -3, 'S': -2, 'T': -2, 'V': -1, 'W':  1, 'Y':  3},
+        'G': {'A':  0, 'C': -3, 'D': -1, 'E': -2, 'F': -3, 'G':  6, 'H': -2, 'I': -4, 'K': -2, 'L': -4, 'M': -3, 'N':  0, 'P': -2, 'Q': -2, 'R': -2, 'S':  0, 'T': -2, 'V': -3, 'W': -2, 'Y': -3},
+        'H': {'A': -2, 'C': -3, 'D': -1, 'E':  0, 'F': -1, 'G': -2, 'H':  8, 'I': -3, 'K': -1, 'L': -3, 'M': -2, 'N':  1, 'P': -2, 'Q':  0, 'R':  0, 'S': -1, 'T': -2, 'V': -3, 'W': -2, 'Y':  2},
+        'I': {'A': -1, 'C': -1, 'D': -3, 'E': -3, 'F':  0, 'G': -4, 'H': -3, 'I':  4, 'K': -3, 'L':  2, 'M':  1, 'N': -3, 'P': -3, 'Q': -3, 'R': -3, 'S': -2, 'T': -1, 'V':  3, 'W': -3, 'Y': -1},
+        'K': {'A': -1, 'C': -3, 'D': -1, 'E':  1, 'F': -3, 'G': -2, 'H': -1, 'I': -3, 'K':  5, 'L': -2, 'M': -1, 'N':  0, 'P': -1, 'Q':  1, 'R':  2, 'S':  0, 'T': -1, 'V': -2, 'W': -3, 'Y': -2},
+        'L': {'A': -1, 'C': -1, 'D': -4, 'E': -3, 'F':  0, 'G': -4, 'H': -3, 'I':  2, 'K': -2, 'L':  4, 'M':  2, 'N': -3, 'P': -3, 'Q': -2, 'R': -2, 'S': -2, 'T': -1, 'V':  1, 'W': -2, 'Y': -1},
+        'M': {'A': -1, 'C': -1, 'D': -3, 'E': -2, 'F':  0, 'G': -3, 'H': -2, 'I':  1, 'K': -1, 'L':  2, 'M':  5, 'N': -2, 'P': -2, 'Q':  0, 'R': -1, 'S': -1, 'T': -1, 'V':  1, 'W': -1, 'Y': -1},
+        'N': {'A': -2, 'C': -3, 'D':  1, 'E':  0, 'F': -3, 'G':  0, 'H':  1, 'I': -3, 'K':  0, 'L': -3, 'M': -2, 'N':  6, 'P': -2, 'Q':  0, 'R':  0, 'S':  1, 'T':  0, 'V': -3, 'W': -4, 'Y': -2},
+        'P': {'A': -1, 'C': -3, 'D': -1, 'E': -1, 'F': -4, 'G': -2, 'H': -2, 'I': -3, 'K': -1, 'L': -3, 'M': -2, 'N': -2, 'P':  7, 'Q': -1, 'R': -2, 'S': -1, 'T': -1, 'V': -2, 'W': -4, 'Y': -3},
+        'Q': {'A': -1, 'C': -3, 'D':  0, 'E':  2, 'F': -3, 'G': -2, 'H':  0, 'I': -3, 'K':  1, 'L': -2, 'M':  0, 'N':  0, 'P': -1, 'Q':  5, 'R':  1, 'S':  0, 'T': -1, 'V': -2, 'W': -2, 'Y': -1},
+        'R': {'A': -1, 'C': -3, 'D': -2, 'E':  0, 'F': -3, 'G': -2, 'H':  0, 'I': -3, 'K':  2, 'L': -2, 'M': -1, 'N':  0, 'P': -2, 'Q':  1, 'R':  5, 'S': -1, 'T': -1, 'V': -3, 'W': -3, 'Y': -2},
+        'S': {'A':  1, 'C': -1, 'D':  0, 'E':  0, 'F': -2, 'G':  0, 'H': -1, 'I':  2, 'K':  0, 'L': -2, 'M': -1, 'N':  1, 'P': -1, 'Q':  0, 'R': -1, 'S':  4, 'T':  1, 'V': -2, 'W': -3, 'Y': -2},
+        'T': {'A':  0, 'C': -1, 'D': -1, 'E': -1, 'F': -2, 'G': -2, 'H': -2, 'I': -1, 'K': -1, 'L': -1, 'M': -1, 'N':  0, 'P': -1, 'Q': -1, 'R': -1, 'S':  1, 'T':  5, 'V':  0, 'W': -2, 'Y': -2},
+        'V': {'A':  0, 'C': -1, 'D': -3, 'E': -2, 'F': -1, 'G': -3, 'H': -3, 'I':  3, 'K': -2, 'L':  1, 'M':  1, 'N': -3, 'P': -2, 'Q': -2, 'R': -3, 'S': -2, 'T':  0, 'V':  4, 'W': -3, 'Y': -1},
+        'W': {'A': -3, 'C': -2, 'D': -4, 'E': -3, 'F':  1, 'G': -2, 'H': -2, 'I': -3, 'K': -3, 'L': -2, 'M': -1, 'N': -4, 'P': -4, 'Q': -2, 'R': -3, 'S': -3, 'T': -2, 'V': -3, 'W': 11, 'Y':  2},
+        'Y': {'A': -2, 'C': -2, 'D': -3, 'E': -2, 'F':  3, 'G': -3, 'H':  2, 'I': -1, 'K': -2, 'L': -1, 'M': -1, 'N': -2, 'P': -3, 'Q': -1, 'R': -2, 'S': -2, 'T': -2, 'V': -1, 'W':  2, 'Y':  7},
+    }
 
-    for i, a in enumerate(seq1):
-        for j, b in enumerate(seq2):
-            M[i, j] = str()
-
-    return M
+    return matrix[a][b]
 
 def hamming_distance(seq1: list[str], seq2: list[str]) -> int:
     dist = 0
@@ -38,13 +54,13 @@ def hamming_distance(seq1: list[str], seq2: list[str]) -> int:
     return dist
 
 def hamming_distance_inverse(seq1: list[str], seq2: list[str]) -> int:
-    max = len(seq1)
+    max = min(len(seq1), len(seq2))
     dist = hamming_distance(seq1, seq2)
     return max - dist
 
 def windowed(l: list, window_size) -> list:
     ret = []
-    for i in range(len(l) - window_size):
+    for i in range(len(l)):
         ret.append(l[i:i + window_size])
 
     return ret
@@ -54,8 +70,9 @@ def construct_windowed_alignment_matrix(seq1, seq2, n=5, scoring_func=hamming_di
     # Hamming distance function as default.
     M = np.zeros((len(seq1), len(seq2)), dtype='int8')
 
+    seq2_windowed = windowed(seq2, n)
     for i, a in enumerate(windowed(seq1, n)):
-        for j, b in enumerate(windowed(seq2, n)):
+        for j, b in enumerate(seq2_windowed):
             score = scoring_func(a, b) 
             if score >= scoring_threshold:
                 M[i, j] = score
@@ -72,7 +89,7 @@ def walk_up_down(M, pos: tuple[int, int]) -> tuple[tuple[int, int], tuple[int, i
     M = M != 0
 
     check_bounds = lambda shape, x, y: \
-        x < shape[0] and y < shape[1] and x >= 0 and y >= 0
+        x < shape[1] and y < shape[0] and x >= 0 and y >= 0
 
     # First, we walk up until the upper zero or the edge is encountered.
     yt, xt = int(y), int(x)
@@ -82,7 +99,8 @@ def walk_up_down(M, pos: tuple[int, int]) -> tuple[tuple[int, int], tuple[int, i
 
     start_point = xt, yt
     
-    while check_bounds(M.shape, xt + 1, yt + 1) and M[yt + 1, xt + 1]:
+    while check_bounds(M.shape, xt + 1, yt + 1)\
+        and M[yt + 1, xt + 1]:
         yt += 1
         xt += 1
 
@@ -123,18 +141,21 @@ def longest_substrings(M, N, s):
 
     return longest_substrings
 
-def compare(s: FastaEntry, t: FastaEntry):
+def compare(s: FastaEntry, t: FastaEntry, n=5, threshold=2):
     print("Comparing")
     print(f"\t{len(s.seq)}\t{s.id}")
     print(f"\t{len(t.seq)}\t{t.id}")
 
     t_start = time.perf_counter()
 
-    M = construct_windowed_alignment_matrix(s.seq, t.seq, n=5)
+    #M = construct_windowed_alignment_matrix(s.seq, t.seq, n=n)
+    M = construct_alignment_matrix(s.seq, t.seq, scoring_func=blosum_62)
     N = M.copy()
 
     print(f"Matrix constructed ({round(time.perf_counter() - t_start, 3)} seconds)")
 
+    M = addition_pass(M)
+    M = addition_pass(M)
     M = addition_pass(M)
     A = M.copy()
 
@@ -142,6 +163,8 @@ def compare(s: FastaEntry, t: FastaEntry):
     M = normalize_pass(M)
     M = addition_pass(M)
     M = shortening_pass(M)
+    M[M <= threshold] = 0
+    #M += N
 
     print(f"Passes completed ({round(time.perf_counter() - t_start, 3)} seconds)")
 
@@ -154,7 +177,10 @@ def compare(s: FastaEntry, t: FastaEntry):
     print(f"\tlen \t{'start':<10}\t{'end':<10}\tsequence")
     print("\n".join([f"\t{end[0] - start[0]:>4}\t{str(start):<10}\t{str(end):<10}\t{seq}" for seq, start, end in ls[::-1][:10]]))
 
+
+    plot_matrix(N, s, t)
     plot_matrix(A, s, t)
+    return M
 
 def main():
     import sys
@@ -170,7 +196,18 @@ def main():
             entry = utilities.read_fasta_file(file_path)[0]
             entries.append(FastaEntry(entry[0], entry[1]))
 
-        compare(entries[0], entries[1])
+        #t_max = 3
+        #fig, axs = plt.subplots(1, t_max)
+        #for t in range(0, t_max):
+        #    #for ni, n in enumerate(range(1, 4)):
+        #    n = 2
+        #    M = compare(entries[0], entries[1], n=n, threshold=t)
+        #    axs[t].matshow(M, interpolation='nearest')
+
+        #plt.show()
+
+        compare(entries[0], entries[1], n=3, threshold=3)
+
     else:
         print("Please provide two paths to fasta files containing protein sequences you want to compare.")
 
