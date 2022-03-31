@@ -46,6 +46,13 @@ def blosum_62(a: str, b: str) -> int:
 
     return matrix[a][b]
 
+def blosum_62_windowed(seq1: list[str], seq2: list[str]) -> int:
+    sum = 0
+    for a, b in zip(seq1, seq2):
+        sum += blosum_62(a, b)
+
+    return sum
+
 def hamming_distance(seq1: list[str], seq2: list[str]) -> int:
     dist = 0
     for a, b in zip(seq1, seq2):
@@ -148,8 +155,8 @@ def compare(s: FastaEntry, t: FastaEntry, n=5, threshold=2):
 
     t_start = time.perf_counter()
 
-    #M = construct_windowed_alignment_matrix(s.seq, t.seq, n=n)
     M = construct_alignment_matrix(s.seq, t.seq, scoring_func=blosum_62)
+    #M = construct_windowed_alignment_matrix(s.seq, t.seq, scoring_func=blosum_62_windowed)
     N = M.copy()
 
     print(f"Matrix constructed ({round(time.perf_counter() - t_start, 3)} seconds)")
