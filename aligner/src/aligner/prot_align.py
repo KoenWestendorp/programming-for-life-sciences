@@ -99,11 +99,21 @@ class Aligner:
         self.t = t
         self.window_size = window_size
         self.threshold = threshold
+        self._alignment_matrix = self._zeros()
+        self._filtering_matrix = self._alignment_matrix
 
-    def __getattr__(self, attr):
-        if attr == 'filtering_matrix':
-            self.filtering_matrix = self.alignment_matrix
-            return self.alignment_matrix
+    @property
+    def filtering_matrix(self):
+        return self._filtering_matrix
+
+    @filtering_matrix.setter
+    def filtering_matrix(self, new_matrix):
+        if self.filtering_matrix.shape == new_matrix.shape:
+            self._filtering_matrix = new_matrix
+        else:
+            # new_matrix is not the same shape as self.filtering_matrix
+            # TODO: Find a more appropriate exception for this case.
+            raise TypeError
 
     def _zeros(self, dtype='int8'):
         return np.zeros((len(self.s.seq), len(self.t.seq)), dtype=dtype)
@@ -124,8 +134,8 @@ class Aligner:
         # Hamming distance function as default.
         M = self._zeros()
 
-        seq2_windowed = windowed(self.s.seq, self.window_size)
-        for i, a in enumerate(windowed(self.t.seq, self.window_size)):
+        seq2_windowed = windowed(self.t.seq, self.window_size)
+        for i, a in enumerate(windowed(self.s.seq, self.window_size)):
             for j, b in enumerate(seq2_windowed):
                 score = scoring_func(a, b) 
                 if score >= self.threshold:
@@ -142,7 +152,10 @@ class Aligner:
         ax_with_seq.xaxis.set_major_locator(ticker.MultipleLocator(1))
         ax_with_seq.yaxis.set_major_locator(ticker.MultipleLocator(1))
         ax_with_seq.matshow(M, interpolation='nearest')
-        ax_with_seq.format_coord = lambda x, y: f"x={int(x + 0.5)} ({self.t.seq[int(x + 0.5)]}), y={int(y + 0.5)} ({self.s.seq[int(y + 0.5)]})"
+        ax_with_seq.format_coord = lambda x, y: f"""x={int(x + 0.5)} \
+({self.t.seq[int(x + 0.5)]}), \
+y={int(y + 0.5)} \
+({self.s.seq[int(y + 0.5)]})"""
 
         plt.xticks(range(len(self.t.seq)), self.t.seq)
         plt.yticks(range(len(self.s.seq)), self.s.seq)
@@ -156,13 +169,15 @@ class Aligner:
         self.plot_matrix(self.filtering_matrix)
 
     def longest_substrings(self):
-        ys, xs = np.asarray(self.filtering_matrix == self.filtering_matrix.max()).nonzero()
+        ys, xs = np.asarray(self.filtering_matrix 
+                            == self.filtering_matrix.max()).nonzero()
         results = set()
         for y, x in zip(ys, xs):
             res = walk_up_down(self.alignment_matrix, (x, y))
             results.add(res)
 
-        longest_substrings = [("".join(self.s.seq[start[1]:end[1]+1]), start, end) 
+        longest_substrings = [("".join(self.s.seq[start[1]:end[1]+1]), 
+                               start, end) 
                               for start, end, _ in results]
         longest_substrings.sort(key=lambda e: e[2][0] - e[1][0] + 1)
 
@@ -170,7 +185,6 @@ class Aligner:
 
     def _generic_pass(self, pass_function):
         a = pass_function(self.filtering_matrix)
-        print("pass", pass_function, self.filtering_matrix, a)
         self.filtering_matrix = a
         return a
 
@@ -184,7 +198,9 @@ class Aligner:
         return self._generic_pass(normalize_pass)
 
     def threshold_pass(self):
-        return self._generic_pass(partial(threshold_pass, threshold=self.threshold))
+        return self._generic_pass(
+            partial(threshold_pass, threshold=self.threshold)
+        )
 
     def squaring_pass(self):
         return self._generic_pass(squaring_pass)
@@ -205,10 +221,7 @@ class Aligner:
 
         self.lifting_pass()
         self.addition_pass()
-        self.addition_pass()
         self.lifting_pass()
-        self.normalize_pass()
-        self.addition_pass()
         self.addition_pass()
 
         print(f"Passes completed ({round(time.perf_counter() - t_start, 3)} seconds)")
