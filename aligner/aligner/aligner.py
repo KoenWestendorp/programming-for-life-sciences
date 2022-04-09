@@ -1,4 +1,4 @@
-from collections import namedtuple
+#from collections import namedtuple
 from functools import partial
 import time
 
@@ -6,12 +6,17 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
 
-from main import addition_pass, normalize_pass, shortening_pass, threshold_pass, squaring_pass, lifting_pass
-import utilities
+from aligner.matrix_manipulation import (
+    addition_pass,
+    lifting_pass,
+    normalize_pass,
+    shortening_pass,
+    squaring_pass,
+    threshold_pass,
+)
+from aligner.utilities import FastaEntry, read_fasta_file
 
-FastaEntry = namedtuple('FastaEntry', 'id seq')
-
-def blosum_62(a: str, b: str) -> int:
+def blosum_62(aa1: str, aa2: str) -> int:
     matrix = {
         'A': {'A':  4, 'C':  0, 'D': -2, 'E': -1, 'F': -2, 'G':  0, 'H': -2, 'I': -1, 'K': -1, 'L': -1, 'M': -1, 'N': -2, 'P': -1, 'Q': -1, 'R': -1, 'S':  1, 'T':  0, 'V':  0, 'W': -3, 'Y': -2},
         'C': {'A':  0, 'C':  9, 'D': -3, 'E': -4, 'F': -2, 'G': -3, 'H': -3, 'I': -1, 'K': -3, 'L': -1, 'M': -1, 'N': -3, 'P': -3, 'Q': -3, 'R': -3, 'S': -1, 'T': -1, 'V': -1, 'W': -2, 'Y': -2},
@@ -35,7 +40,7 @@ def blosum_62(a: str, b: str) -> int:
         'Y': {'A': -2, 'C': -2, 'D': -3, 'E': -2, 'F':  3, 'G': -3, 'H':  2, 'I': -1, 'K': -2, 'L': -1, 'M': -1, 'N': -2, 'P': -3, 'Q': -1, 'R': -2, 'S': -2, 'T': -2, 'V': -1, 'W':  2, 'Y':  7},
     }
 
-    return matrix[a][b]
+    return matrix[aa1][aa2]
 
 def blosum_62_windowed(seq1: list[str], seq2: list[str]) -> int:
     sum = 0
@@ -115,6 +120,19 @@ class Aligner:
             # TODO: Find a more appropriate exception for this case.
             raise TypeError
 
+    @property
+    def alignment_matrix(self):
+        return self._alignment_matrix
+
+    @alignment_matrix.setter
+    def alignment_matrix(self, new_matrix):
+        if self.alignment_matrix.shape == new_matrix.shape:
+            self._alignment_matrix = new_matrix
+        else:
+            # new_matrix is not the same shape as self.filtering_matrix
+            # TODO: Find a more appropriate exception for this case.
+            raise TypeError
+
     def _zeros(self, dtype='int8'):
         return np.zeros((len(self.s.seq), len(self.t.seq)), dtype=dtype)
 
@@ -147,8 +165,8 @@ class Aligner:
 
     def plot_matrix(self, M):
         _, ax_with_seq = plt.subplots()
-        ax_with_seq.set_xlabel(self.t.id)
-        ax_with_seq.set_ylabel(self.s.id)
+        ax_with_seq.set_xlabel(self.t.id[:48])
+        ax_with_seq.set_ylabel(self.s.id[:48])
         ax_with_seq.xaxis.set_major_locator(ticker.MultipleLocator(1))
         ax_with_seq.yaxis.set_major_locator(ticker.MultipleLocator(1))
         ax_with_seq.matshow(M, interpolation='nearest')
@@ -177,7 +195,7 @@ y={int(y + 0.5)} \
             results.add(res)
 
         longest_substrings = [("".join(self.s.seq[start[1]:end[1]+1]), 
-                               start, end) 
+                               start, end)
                               for start, end, _ in results]
         longest_substrings.sort(key=lambda e: e[2][0] - e[1][0] + 1)
 
@@ -250,7 +268,7 @@ def main():
         entries = []
         for file_path in fasta_files:
             print(f"Reading '{file_path}'...")
-            entry = utilities.read_fasta_file(file_path)[0]
+            entry = read_fasta_file(file_path)[0]
             entries.append(FastaEntry(entry[0], entry[1]))
 
         al = Aligner(entries[0], entries[1], window_size=3, threshold=3)
