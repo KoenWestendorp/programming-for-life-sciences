@@ -1,3 +1,3 @@
-from . import utilities
-from . import matrix_manipulation
-from . import aligner
+from aligner import utilities
+from aligner import matrix_manipulation
+from aligner import aligner

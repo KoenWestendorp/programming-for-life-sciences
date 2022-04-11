@@ -18,7 +18,20 @@ def get_uniprot_fasta(uniprot_id: str) -> FastaEntry:
     # We ignore any other entries, because we can assume only one fasta entry 
     # is present in the response from UniProt.
     entry, *_ = read_fasta(body.decode('utf-8'))
-    return _str_str_to_FastaEntry(entry)
+    return entry
+
+def get_rcsb_pdb_fasta(pdb_id: str) -> list[FastaEntry]:
+    # TODO: use a proper url constructer for this.
+    url = f"https://www.rcsb.org/fasta/entry/{pdb_id}"
+
+    with request.urlopen(url) as response:
+        body = response.read()
+
+    # Responses from RCSB PDB can contain a number of entries, each
+    # representing the sequence of a different chain. We return each of the
+    # entries, rather than a single FastaEntry as get_uniprot_fasta() does.
+    entries = read_fasta(body.decode('utf-8'))
+    return entries
 
 def file_to_string(path: str) -> str:
     data = ""
@@ -31,7 +44,7 @@ def string_to_file(s: str, path: str):
     with open(path, "w") as f:
         f.write(s)
 
-def read_fasta(fasta: str) -> list[list[str]]:
+def read_fasta(fasta: str) -> list[FastaEntry]:
     '''
     Returns a list of lists countaining the identifier string and the sequence
     content.
@@ -49,37 +62,17 @@ def read_fasta(fasta: str) -> list[list[str]]:
         List of [identifier, sequence].
     '''
 
-    ret = []
+    entries = []
     for line in fasta.splitlines():
         if line.startswith(">"):
             # The line is the start of a new fasta entry.
             ident = line[1:].strip()
-            ret.append([ident, ""])
+            entries.append([ident, ""])
         else:
-            ret[-1][1] += line.strip()
+            entries[-1][1] += line.strip()
 
-    return ret
+    return [FastaEntry(id, seq) for id, seq in entries]
 
-def read_fasta_test():
-    fasta = """>Rosalind_6404
-CCTGCGGAAGATCGGCACTAGAATAGCCAGAACCGTTTCTCTGAGGCTTCCGGCCTTCCC
-TCCCACTAATAATTCTGAGG
->Rosalind_5959
-CCATCGGTAGCGCATCCTTAGTCCAATTAAGTCCCTATCCAGGCGCTCCGCCGAAGGTCT
-ATATCCATTTGTCAGCAGACACGC
->Rosalind_0808
-CCACCCTCGTGGTATGGCTAGGCATTCAGGAACCGGAGAACGCTTCAGACCAGCCCGGAC
-TGGGAACCTGCGGGCAGTAGGTGGAAT"""
-    data = [
-        ['Rosalind_6404', 'CCTGCGGAAGATCGGCACTAGAATAGCCAGAACCGTTTCTCTGAGGCTTCCGGCCTTCCCTCCCACTAATAATTCTGAGG'], 
-        ['Rosalind_5959', 'CCATCGGTAGCGCATCCTTAGTCCAATTAAGTCCCTATCCAGGCGCTCCGCCGAAGGTCTATATCCATTTGTCAGCAGACACGC'], 
-        ['Rosalind_0808', 'CCACCCTCGTGGTATGGCTAGGCATTCAGGAACCGGAGAACGCTTCAGACCAGCCCGGACTGGGAACCTGCGGGCAGTAGGTGGAAT'],
-    ]
-    assert read_fasta(fasta) == data
-
-def read_fasta_file(path: str) -> [[str, str]]:
+def read_fasta_file(path: str) -> list[FastaEntry]:
     fasta = file_to_string(path)
     return read_fasta(fasta)
-
-if __name__ == "__main__":
-    read_fasta_test()
